@@ -10,6 +10,5 @@
     "backend": "node back_end/index.js"
   },
   "author": "",
-  "license": "ISC",
-  "dependencies": {}
+  "license": "ISC"
 }
