@@ -50,6 +50,17 @@ const getUsername = () => {
   return ""
 }
 
+const getReferralCode = () => {
+  const params = (new URL(document.location)).searchParams;
+  const key = params.get("referralCode");
+
+  if(key && key.length > 0) {
+    return key
+  }
+
+  return ""
+}
+
 const classNames = (...classes) => {
   return classes.filter(Boolean).join(' ')
 }
@@ -87,7 +98,7 @@ const copyToClipboard = (text) => {
 }
 
 const getRedirectUrl = (language, action) => {
- return `${process.env.REACT_APP_AUTH_URL}/${language}/${action}?${new URLSearchParams({return_to_app: `${process.env.REACT_APP_BASE_URL}/?${new URLSearchParams(window.location.search).toString()}`, jurisdiction: "CR" }).toString()}`
+ return `${process.env.REACT_APP_AUTH_URL}/${language}/${action}?${new URLSearchParams({return_to_app: `${process.env.REACT_APP_BASE_URL}/?${new URLSearchParams(window.location.search).toString()}`, jurisdiction: "CA", referral_code: getReferralCode() }).toString()}`
 }
 
 const handleLinkClick = (e) => {
@@ -126,4 +137,4 @@ const calculateTotalFees = (quote) => {
   }, 0);
 }
 
-export { getLanguage, getPhoneNumber, getSatBalance, getUsername, classNames, parseFiatNumber, isInIframe, isInApp, copyToClipboard, getRedirectUrl, handleLinkClick, calculateTotalFees }
+export { getLanguage, getPhoneNumber, getSatBalance, getUsername, getReferralCode, classNames, parseFiatNumber, isInIframe, isInApp, copyToClipboard, getRedirectUrl, handleLinkClick, calculateTotalFees }

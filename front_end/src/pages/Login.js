@@ -9,7 +9,7 @@ export default function Login({ language }) {
           <span className="text-red-700">Bull Bitcoin</span>
         </h1>
         <p className="text-xl text-gray-900 mb-8 max-w-3xl mx-auto">
-          🇨🇷 {language.login.welcome} 🇨🇷 
+          {language.login.welcome}
         </p>
       </div>
 
