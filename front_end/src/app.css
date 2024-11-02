@@ -1,0 +1,23 @@
+a, button {
+	cursor: pointer;
+	font-family: "Bebas Neue", ui-sans-serif, system-ui, sans-serif;
+	font-size: 1.25rem;
+	letter-spacing: 0.03em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+	font-family: "Bebas Neue", ui-sans-serif, system-ui, sans-serif;
+	letter-spacing: 0.03em;
+}
+
+html:not(.dark) object[type="image/svg+xml"] {
+	filter: none;
+}
+  
+html.dark object[type="image/svg+xml"] {
+	filter: invert(1) hue-rotate(180deg);
+}
+
+html.dark .nightwind-prevent-block object[type="image/svg+xml"] {
+	filter: initial;
+}

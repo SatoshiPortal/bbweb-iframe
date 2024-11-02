@@ -1,0 +1,7 @@
+.env
+node_modules/
+data/
+front_end/.env
+back_end/.env
+.DS_Store
+.envrc

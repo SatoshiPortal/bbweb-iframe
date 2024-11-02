@@ -1,0 +1,144 @@
+name: Build and Deploy Fullstack Application
+
+on:
+  push:
+    tags:
+      - "prod-*"
+      - "stage-*"
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker Image for Production or Staging
+        run: |
+          REPO_NAME=$(basename ${{ github.repository }})
+          TAG_REF="${{ github.ref_name }}"
+          CLEAN_TAG=$TAG_REF
+
+          echo "DOCKER_REGISTRY_URL: ${{ secrets.DOCKER_REGISTRY_URL }}"
+          echo "REPO_NAME: $REPO_NAME"
+          echo "CLEAN_TAG: $CLEAN_TAG"
+
+          if [[ "$CLEAN_TAG" =~ prod-.* ]]; then
+            echo "Building for production environment"
+            FRONTEND_BASE_URL=${{ secrets.PROD_FRONTEND_BASE_URL }}
+            FRONTEND_AUTH_URL=${{ secrets.PROD_FRONTEND_AUTH_URL }}
+            FRONTEND_API_URL=${{ secrets.PROD_FRONTEND_API_URL }}
+            FRONTEND_BITCOIN_NETWORK=mainnet
+            FRONTEND_BTCPAY_BASE_URL=${{ secrets.PROD_FRONTEND_BTCPAY_BASE_URL }}
+          elif [[ "$CLEAN_TAG" =~ stage-.* ]]; then
+            echo "Building for staging environment"
+            FRONTEND_BASE_URL=${{ secrets.STAGE_FRONTEND_BASE_URL }}
+            FRONTEND_AUTH_URL=${{ secrets.STAGE_FRONTEND_AUTH_URL }}
+            FRONTEND_API_URL=${{ secrets.STAGE_FRONTEND_API_URL }}
+            FRONTEND_BITCOIN_NETWORK=testnet
+            FRONTEND_BTCPAY_BASE_URL=${{ secrets.STAGE_FRONTEND_BTCPAY_BASE_URL }}
+          else
+            echo "Unknown environment, exiting."
+            exit 1
+          fi
+
+          docker build --no-cache \
+            --build-arg REACT_APP_BASE_URL=$FRONTEND_BASE_URL \
+            --build-arg REACT_APP_AUTH_URL=$FRONTEND_AUTH_URL \
+            --build-arg REACT_APP_API_URL=$FRONTEND_API_URL \
+            --build-arg REACT_APP_BITCOIN_NETWORK=$FRONTEND_BITCOIN_NETWORK \
+            --build-arg REACT_APP_BTCPAY_BASE_URL=$FRONTEND_BTCPAY_BASE_URL \
+            -t ${{ secrets.DOCKER_REGISTRY_URL }}/$REPO_NAME:$CLEAN_TAG .
+
+          docker push ${{ secrets.DOCKER_REGISTRY_URL }}/$REPO_NAME:$CLEAN_TAG
+
+  deploy:
+    needs: build
+    runs-on: self-hosted
+
+    steps:
+      - name: Deploy to VM via SSH
+        uses: appleboy/ssh-action@v0.1.9
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            TAG_REF="${{ github.ref_name }}"
+            CLEAN_TAG=$TAG_REF
+
+            # Access the REPO_NAME set during the build step using GITHUB_ENV
+            REPO_NAME=$(basename ${{ github.repository }})
+
+            echo "DOCKER_REGISTRY_URL: ${{ secrets.DOCKER_REGISTRY_URL }}"
+            echo "REPO_NAME: $REPO_NAME"
+            echo "CLEAN_TAG: $CLEAN_TAG"
+
+            mkdir -p ./back_end
+            mkdir -p ./back_end/stage
+            mkdir -p ./back_end/prod
+
+            if [[ "$CLEAN_TAG" =~ prod-.* ]]; then
+              echo "Deploying for production environment"
+              VM_PORT=${{ secrets.PROD_VM_PORT }}
+              ENV_DIR=./back_end/prod
+              CONTAINER_NAME=$REPO_NAME-prod
+              echo "PORT=3200" > ./back_end/prod/.env
+              echo "NODE_ENV=production" >> ./back_end/prod/.env
+              echo "BASE_URL=${{ secrets.PROD_BACKEND_BASE_URL }}" >> ./back_end/prod/.env
+              echo "AUTH_URL=${{ secrets.PROD_BACKEND_AUTH_URL }}" >> ./back_end/prod/.env
+              echo "API_URL=${{ secrets.PROD_BACKEND_API_URL }}" >> ./back_end/prod/.env
+              echo "CLOUDFLARE_ACCOUNT_ID=${{ secrets.PROD_CLOUDFLARE_ACCOUNT_ID }}" >> ./back_end/prod/.env
+              echo "CLOUDFLARE_API_KEY=${{ secrets.PROD_CLOUDFLARE_API_KEY }}" >> ./back_end/prod/.env
+              echo "CLOUDFLARE_NAMESPACE_ID=${{ secrets.PROD_CLOUDFLARE_NAMESPACE_ID }}" >> ./back_end/prod/.env
+              echo "BTCPAY_BASE_URL=${{ secrets.PROD_BACKEND_BTCPAY_BASE_URL }}" >> ./back_end/prod/.env
+              echo "BTCPAY_API_KEY=${{ secrets.PROD_BACKEND_BTCPAY_API_KEY }}" >> ./back_end/prod/.env
+              echo "BTCPAY_SECRET=${{ secrets.PROD_BACKEND_BTCPAY_SECRET }}" >> ./back_end/prod/.env
+              echo "TWILIO_ACCOUNT_SID=${{ secrets.PROD_TWILIO_ACCOUNT_SID }}" >> ./back_end/prod/.env
+              echo "TWILIO_AUTH_TOKEN=${{ secrets.PROD_TWILIO_AUTH_TOKEN }}" >> ./back_end/prod/.env
+              echo "TWILIO_PHONE_NUMBER=${{ secrets.PROD_TWILIO_PHONE_NUMBER }}" >> ./back_end/prod/.env
+            elif [[ "$CLEAN_TAG" =~ stage-.* ]]; then
+              echo "Deploying for staging environment"
+              VM_PORT=${{ secrets.STAGE_VM_PORT }}
+              ENV_DIR=./back_end/stage
+              CONTAINER_NAME=$REPO_NAME-stage
+              echo "PORT=3200" > ./back_end/stage/.env
+              echo "NODE_ENV=production" >> ./back_end/stage/.env
+              echo "BASE_URL=${{ secrets.STAGE_BACKEND_BASE_URL }}" >> ./back_end/stage/.env
+              echo "AUTH_URL=${{ secrets.STAGE_BACKEND_AUTH_URL }}" >> ./back_end/stage/.env
+              echo "API_URL=${{ secrets.STAGE_BACKEND_API_URL }}" >> ./back_end/stage/.env
+              echo "CLOUDFLARE_ACCOUNT_ID=${{ secrets.STAGE_CLOUDFLARE_ACCOUNT_ID }}" >> ./back_end/stage/.env
+              echo "CLOUDFLARE_API_KEY=${{ secrets.STAGE_CLOUDFLARE_API_KEY }}" >> ./back_end/stage/.env
+              echo "CLOUDFLARE_NAMESPACE_ID=${{ secrets.STAGE_CLOUDFLARE_NAMESPACE_ID }}" >> ./back_end/stage/.env
+              echo "BTCPAY_BASE_URL=${{ secrets.STAGE_BACKEND_BTCPAY_BASE_URL }}" >> ./back_end/stage/.env
+              echo "BTCPAY_API_KEY=${{ secrets.STAGE_BACKEND_BTCPAY_API_KEY }}" >> ./back_end/stage/.env
+              echo "BTCPAY_SECRET=${{ secrets.STAGE_BACKEND_BTCPAY_SECRET }}" >> ./back_end/stage/.env
+              echo "TWILIO_ACCOUNT_SID=${{ secrets.STAGE_TWILIO_ACCOUNT_SID }}" >> ./back_end/stage/.env
+              echo "TWILIO_AUTH_TOKEN=${{ secrets.STAGE_TWILIO_AUTH_TOKEN }}" >> ./back_end/stage/.env
+              echo "TWILIO_PHONE_NUMBER=${{ secrets.STAGE_TWILIO_PHONE_NUMBER }}" >> ./back_end/stage/.env
+            else
+              echo "Unknown environment, exiting."
+              exit 1
+            fi
+
+            # Pull the latest Docker image
+            docker pull ${{ secrets.DOCKER_REGISTRY_URL }}/$REPO_NAME:$CLEAN_TAG
+
+            # Stop and remove existing container
+            docker stop $CONTAINER_NAME || true
+            docker rm $CONTAINER_NAME || true
+
+            # Clean up unused Docker images
+            docker system prune -f
+
+            # Run the new container using the correct VM_PORT
+            docker run -d --name $CONTAINER_NAME \
+              -p $VM_PORT:3200 \
+              --env-file $ENV_DIR/.env \
+              -e NODE_ENV=production \
+              ${{ secrets.DOCKER_REGISTRY_URL }}/$REPO_NAME:$CLEAN_TAG

@@ -1,0 +1,15 @@
+{
+  "name": "bull-jungle-orders-v2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "connectBackend": "ssh -fN -L 8880:localhost:8880 -L 4455:localhost:4455 -L 8025:localhost:8025 -L 3110:localhost:3110 $SSH_HOST",
+    "start": "npm run connectBackend && npm run backend",
+    "backend": "node back_end/index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {}
+}
